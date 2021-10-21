@@ -1,4 +1,4 @@
-# -ApC-GPA606
+# ApC-GPA606
 
 Aprenentatge Computacional Pràctica 1 - Regressió Lineal
 
