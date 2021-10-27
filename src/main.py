@@ -12,9 +12,14 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from helpers import *
 from regression import Regression
-from sklearn.preprocessing import PolynomialFeatures
 
-PLOT_DATA = True # True para mostrar los graficos de los apartados
+###################
+#    IMPORTANTE   #
+###################
+
+# Recomendamos ejecutar el codigo poco a poco por cada comentario que hay en el codigo.
+
+PLOT_DATA = True # False para no mostrar los graficos de los apartados
 DATA_DIR = 'data/insurance.csv'
 
 if not PLOT_DATA:
@@ -27,10 +32,12 @@ def run():
     apartado_b(df)
     apartado_a(df)
 
-def apartado_c(df):
+def apartado_c(df):    
+    print('''
     # --------------------------------------------------
     # Apartado C                                       #
     # --------------------------------------------------
+    ''')
     
     # Mostramos las 5 primeras filas, la descripcion y la info de la base de datos.
     show_data(df)
@@ -95,27 +102,42 @@ def apartado_c(df):
     return df
 
 def apartado_b(df):
+    print('''
     # --------------------------------------------------
     # Apartado B                                       #
     # --------------------------------------------------
+     ''')
     
     # Creamos 2 datasets por cada clase de la columna 'smoker'
     # donde el valor objetivo es 'expenses'
     X_no, y_no, X_yes, y_yes, no_columns, yes_columns = split_smokers(df, 'expenses')
-    show_x_y(X_no[:,0], y_no, "Expenses vs. Age", "Age (Scaled)", "Expenses")
-    show_x_y(X_no[:,1], y_no, "Expenses vs. Bmi", "Bmi (Scaled)", "Expenses")
-    show_x_y(X_yes[:,1], y_yes, "Expenses vs. Bmi", "Bmi (Scaled)", "Expenses")
-    show_x_y(X_yes[:,0], y_yes, "Expenses vs. Age", "Age (Scaled)", "Expenses")
     
-    # Comparamos como afecta la normalizacion de los datos
-    X_no, y_no, X_yes, y_yes, no_columns, yes_columns = split_smokers(df, 'expenses')
-    print('\n-----------------------\nYes r2 score (Scaled)\n-----------------------')
-    calculate_r2_score_atr(X_yes, y_yes, yes_columns)
+    # Visluaizamos los datos nuesvos separados por la clase smoker y sus regresiones.
+    
+    show_x_y(X_no[:,0], y_no, "Expenses vs. Age", "Age (Scaled)", "Expenses")
+    dummy = X_no[:,0].reshape(X_no.shape[0],1)
+    r = regression(dummy, y_no)
+    plt.title("Expenses vs. Age No smoke")
+    show_regresion(dummy, y_no, r)
 
-    print('\n-----------------------\nNo r2 score (Scaled)\n-----------------------')
-    calculate_r2_score_atr(X_no, y_no, no_columns)
+    show_x_y(X_no[:,1], y_no, "Expenses vs. Bmi", "Bmi (Scaled)", "Expenses")
+    dummy = X_no[:,1].reshape(X_no.shape[0],1)
+    r = regression(dummy, y_no)
+    plt.title("Expenses vs. Bmi No smoke")
+    show_regresion(dummy, y_no, r)
 
-    X_no, y_no, X_yes, y_yes, no_columns, yes_columns = split_smokers(df, 'expenses', False)
+    show_x_y(X_yes[:,1], y_yes, "Expenses vs. Bmi", "Bmi (Scaled)", "Expenses")
+    dummy = X_yes[:,1].reshape(X_yes.shape[0],1)
+    r = regression(dummy, y_yes)
+    plt.title("Expenses vs. Bmi Smoke")
+    show_regresion(dummy, y_yes, r)
+
+    show_x_y(X_yes[:,0], y_yes, "Expenses vs. Age", "Age (Scaled)", "Expenses")
+    dummy = X_yes[:,0].reshape(X_yes.shape[0],1)
+    r = regression(dummy, y_yes)
+    plt.title("Expenses vs. Age Smoke")
+    show_regresion(dummy, y_yes, r)
+
     print('\n-----------------------\nYes r2 score\n-----------------------')
     calculate_r2_score_atr(X_yes, y_yes, yes_columns)
 
@@ -159,29 +181,82 @@ def apartado_b(df):
     print(f'La mejor dimension para X es: {best_d.shape[1]}')
 
 def apartado_a(df):
+    print('''
+    # --------------------------------------------------
+    # Apartado A                                       #
+    # --------------------------------------------------
+    ''')
     
     # Comparamos nuestro regresor con un modelo polinomial
     # para ver si lo hemos relizado correctamente
+    # Hemos deccidido realiza las pruebas solo con los datos de los que fuman
     
-    poly_reg = PolynomialFeatures(degree=3)
-    X_no, y_no, _, _, _, _ = split_smokers(df, 'expenses', True, 0.1)
-    x_train_no, y_train_no, _, _ = split_data(X_no, y_no)
-    
-    dummy = x_train_no[:,0].reshape(x_train_no.shape[0], 1)
-    X_poly = poly_reg.fit_transform(dummy)
-    reg = Regression(X_poly, y_train_no, 0.1, 1)
-    reg.train()
+    _, _, X_yes, y_yes, _, _ = split_smokers(df, 'expenses', True, 0.1)
 
-    r = regression(X_poly, y_train_no)
+    x_train_yes, y_train_yes, x_test_yes, y_test_yes = split_data(X_yes, y_yes)
     
-    show_polinomial(dummy, y_train_no, reg.w, reg.b)
-    show_polinomial(dummy, y_train_no, r.coef_, r.intercept_)
-    
-    print(f'Los pesos del Regresor lineal de sklearn son: {r.coef_}')
-    print(f'Los pesos del Regresor lineal nuestro son: {reg.w}')
-    
-    print(f'El bias del Regresor lineal de sklearn son {r.intercept_}')
-    print(f'El bias del Regresor lineal nuestro son: {r.intercept_}')
+    for x in range(1, 5):
+        
+        test_degree = x
 
+        kw = {'lr': 0.01, 'l': 0.0001, 'epsilon': 0.1, 'degree': test_degree}
+
+        dummy_yes = x_train_yes[:,1].reshape(x_train_yes.shape[0], 1)
+        dummy_yes_test = x_test_yes[:,1].reshape(x_test_yes.shape[0], 1)
+
+        r = train_degree(dummy_yes, y_train_yes, dummy_yes_test, y_test_yes, **kw)
+        r_sk = train_degree_sk(dummy_yes, y_train_yes, dummy_yes_test, y_test_yes, test_degree)
+
+        # Comparamos nuestra implmentacion con sklearn
+        
+        print(f'El valor de los pesos de nuestra implementacion es: {r[1]}')
+        print(f'El valor de los pesos de la implementacion de sklearn es: {r_sk[1]}')
+        print(f'El valor del bias de nuestra implementacion es de: {r[2]}')
+        print(f'El valor del bias de la implementacion de sklearn es: {r_sk[2]}')
+
+        print(f'El r2 score de nuestra implementacion es: {r[0]}')
+        print(f'El r2 score de la implementacion de sklearn es: {r_sk[0]}')
+
+        plt.title('Modelo de nuestra implementacion')
+        show_polinomial(dummy_yes, y_train_yes, r[1], r[2])
+        plt.title('Modelo de sklearn')
+        show_polinomial(dummy_yes, y_train_yes, r_sk[1], r_sk[2])
+    
+    # Visualizacion del coeficiente de prismatico
+    
+    x_val = x_train_yes
+    y_val = y_train_yes
+    regr = regression(x_val, y_val)
+    predX3D = regr.predict(x_val)
+    
+    coeficiente_prismatico(x_val, y_val, predX3D)
+    plt.show()
+    
+    regr = Regression(x_val, y_val)
+    regr.train()
+    predX3D = regr.predict(x_val)
+    coeficiente_prismatico(x_val, y_val, predX3D)
+    plt.show()
+    
+    # Comparativa entre un modelo polinomial y un modelo de regresion lineal
+    
+    mse_n = []
+    mse_p = []
+
+    for _ in range(20):
+        kw = {'lr': 0.01, 'l': 0.0001, 'epsilon': 0.1, 'degree': 2}
+        r = train_degree(x_train_yes, y_train_yes, x_test_yes, y_test_yes, **kw)
+        mse_n.append(r[-1][-1])
+        
+        kw = {'lr': 0.01, 'l': 0.0001, 'epsilon': 0.1, 'degree': 3}
+        r2 = train_degree(x_train_yes, y_train_yes, x_test_yes, y_test_yes, **kw)
+        mse_p.append(r2[-1][-1])
+
+    def mean_list(l):
+        return sum(l)/len(l)
+
+    print(f'Media del error medio de todas las pruebas de un modelo lineal: {mean_list(mse_n)}')
+    print(f'Media del error medio de todas las pruebas de un modelo polinomial: {mean_list(mse_p)}')
+    
 if __name__ == '__main__':
     run()

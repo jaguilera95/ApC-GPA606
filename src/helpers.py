@@ -16,8 +16,13 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
 from mpl_toolkits.mplot3d import Axes3D
+
+from regression import Regression
+
 import warnings
+
 warnings.filterwarnings("ignore")
 
 def split_x_y_scale(df: pd.DataFrame, y_target: str):
@@ -39,6 +44,19 @@ def split_x_y_scale(df: pd.DataFrame, y_target: str):
     X_s = scaler.fit_transform(X)
     
     return X_s, y
+
+def show_regresion(X: np.array, y: np.array, model: LinearRegression):
+    """
+    Funcion que grafica los datos y el modelo de regresión lineal
+
+    Args:
+        X (np.array): X
+        y (np.array): y
+        model (LinearRegression): Modelo de regresión lineal
+    """
+    plt.scatter(X, y, color='red')
+    plt.plot(X, model.predict(X), color='blue', linewidth=2)
+    plt.show()
 
 def show_polinomial(X: np.array, y: np.array, coefs: list, bias: float):
     """
@@ -392,3 +410,72 @@ def calculate_best_dimension_pca(X: np.array, y: np.array) -> list:
         results.append((d, r2_score(reg.predict(x_test_d), y_test)))
         print("Dimension: ", d, " R2: ", r2_score(reg.predict(x_test_d), y_test))
     return results
+
+def train_degree(x_train: np.array, y_train: np.array, x_test: np.array, y_test: np.array, **kw):
+    """
+    Funcion que calcula el error y el R2 de un conjunto de datos. Y con un polinomio de grado d.
+    Para nuestra implementacion.
+    Args:
+        x_train: np.array, y_train: np.array, x_test: np.array, y_test: np.array
+        
+    Returns:
+        list(tuple): Lista con la dimension y el error y el R2
+    """
+    poly_reg = PolynomialFeatures(degree=kw['degree'])
+
+    X_poly = poly_reg.fit_transform(x_train)
+    X_poly_test = poly_reg.fit_transform(x_test)
+
+    reg = Regression(X_poly, y_train, kw['lr'], kw['l'])
+    reg.train(2000, kw['epsilon'])
+    return r2_score(y_test, reg.predict(X_poly_test)), reg.w, reg.b, len(reg.mse), reg.mse
+
+def train_degree_sk(x_train: np.array, y_train: np.array, x_test: np.array, y_test: np.array, degree: int):
+    """
+    Funcion que calcula el error y el R2 de un conjunto de datos. Y con un polinomio de grado d.
+    Para la libreria de sklearn.
+    Args:
+        x_train: np.array, y_train: np.array, x_test: np.array, y_test: np.array
+        
+    Returns:
+        list(tuple): Lista con la dimension y el error y el R2
+    """
+    poly_reg = PolynomialFeatures(degree=degree)
+
+    X_poly = poly_reg.fit_transform(x_train)
+    X_poly_test = poly_reg.fit_transform(x_test)
+
+    reg = regression(X_poly, y_train)
+    return r2_score(y_test, reg.predict(X_poly_test)), reg.coef_, reg.intercept_
+
+def coeficiente_prismatico(x_val: np.array, y_val: np.array, predX3D: np.array):
+    """
+    Funcion que calcula el coeficiente de prismaticidad de un conjunto de datos.
+
+    Args:
+        x_val (np.array): Dataset X
+        y_val (np.array): Columna de objetivo
+        predX3D (np.array): Dataset X con la prediccion de una regresion
+    """
+    # Afegim els 1's
+    A = np.hstack((x_val,np.ones([x_val.shape[0],1])))
+    w = np.linalg.lstsq(A,predX3D)[0]
+
+    #Dibuixem
+    #1r creem una malla acoplada a la zona de punts per tal de representar el pla
+    malla = (range(20) + 0 * np.ones(20)) / 10 
+    malla_x1 =  malla * (max(x_val[:,0]) - min(x_val[:,0]))/2 + min(x_val[:,0])
+    malla_x2 =  malla * (max(x_val[:,1]) - min(x_val[:,1]))/2 + min(x_val[:,1])
+
+    #la funcio meshgrid ens aparella un de malla_x1 amb un de malla_x2, per atot
+    #element de mallax_1 i per a tot element de malla_x2.
+    xplot, yplot = np.meshgrid(malla_x1 ,malla_x2)
+
+    #ara creem la superficies que es un pla
+    zplot = w[0] * xplot + w[1] * yplot + w[2]
+
+    #Dibuixem punts i superficie
+    plt3d = plt.figure('Coeficiente prismatico -- Relacio longitud desplacament 3D', dpi=100.0).gca(projection='3d')
+    plt3d.set_title('Coeficiente prismatico, sklearn')
+    plt3d.plot_surface(xplot,yplot,zplot, color='red')
+    plt3d.scatter(x_val[:,0],x_val[:,1],y_val)
